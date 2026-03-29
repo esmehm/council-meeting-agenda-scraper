@@ -187,6 +187,10 @@ def run_scraper(
     try:
         scraper.logger.info("Scraper started")
 
+        # Pass year filter to scraper so it can optimise (e.g. skip pagination)
+        if years:
+            scraper.years_filter = years
+
         results = get_agenda_info(scraper, adapter_mode=adapter_mode)
 
         # Filter by years if specified
