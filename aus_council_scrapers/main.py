@@ -187,7 +187,7 @@ def run_scraper(
     try:
         scraper.logger.info("Scraper started")
 
-        results = get_agenda_info(scraper)
+        results = get_agenda_info(scraper, adapter_mode=adapter_mode)
 
         # Filter by years if specified
         if years:
@@ -215,6 +215,8 @@ def run_scraper(
                         "webpage_url": result.webpage_url,
                         "agenda_url": result.agenda_url,
                         "minutes_url": result.minutes_url,
+                        "agenda_html_url": result.agenda_html_url,
+                        "minutes_html_url": result.minutes_html_url,
                         "download_url": result.download_url,
                         "location": getattr(result, "location", None)
                         or getattr(result, "cleaned_location", None),
@@ -338,7 +340,7 @@ def run_scraper(
         }
 
 
-def get_agenda_info(scraper: BaseScraper) -> list[ScraperReturn]:
+def get_agenda_info(scraper: BaseScraper, adapter_mode: bool = False) -> list[ScraperReturn]:
     scraper.logger.info("Finding agenda...")
     results = scraper.scraper()
     scraper.logger.debug(f"Found {len(results)} meetings")
@@ -357,7 +359,10 @@ def get_agenda_info(scraper: BaseScraper) -> list[ScraperReturn]:
             scraper.logger.warning(f"Time found but could not be parsed: {result.time}")
 
         if result.is_date_in_past(scraper.state):
-            scraper.logger.warning(f"Date is in the past: {result.cleaned_date}")
+            if adapter_mode:
+                scraper.logger.debug(f"Date is in the past: {result.cleaned_date}")
+            else:
+                scraper.logger.warning(f"Date is in the past: {result.cleaned_date}")
 
         processed_results.append(result)
 
