@@ -1,1 +1,42 @@
-{"name": null, "date": "Mon 27 May 2024", "time": "6:30 pm", "location": "8 Inglesby Road Camberwell VIC 3124", "webpage_url": "https://www.boroondara.vic.gov.au", "download_url": "https://www.boroondara.vic.gov.au/media/98051/download?inline"}
+[
+  {
+    "name": "Council Meeting - 28 October 2024",
+    "date": "2024-10-28",
+    "time": "6:30 pm",
+    "location": "8 Inglesby Road, Camberwell, Victoria 3124",
+    "webpage_url": "https://www.boroondara.vic.gov.au/events/council-meeting-28-october-2024",
+    "download_url": "https://www.boroondara.vic.gov.au/media/10001/download?inline",
+    "agenda_url": "https://www.boroondara.vic.gov.au/media/10001/download?inline",
+    "minutes_url": "https://www.boroondara.vic.gov.au/media/10002/download?inline"
+  },
+  {
+    "name": "Council Meeting - 30 September 2024",
+    "date": "2024-09-30",
+    "time": "6:30 pm",
+    "location": "8 Inglesby Road, Camberwell, Victoria 3124",
+    "webpage_url": "https://www.boroondara.vic.gov.au/events/council-meeting-30-september-2024",
+    "download_url": "https://www.boroondara.vic.gov.au/media/10003/download?inline",
+    "agenda_url": "https://www.boroondara.vic.gov.au/media/10003/download?inline",
+    "minutes_url": "https://www.boroondara.vic.gov.au/media/10004/download?inline"
+  },
+  {
+    "name": "Council Meeting - 26 August 2024",
+    "date": "2024-08-26",
+    "time": "6:30 pm",
+    "location": "8 Inglesby Road, Camberwell, Victoria 3124",
+    "webpage_url": "https://www.boroondara.vic.gov.au/events/council-meeting-26-august-2024",
+    "download_url": "https://www.boroondara.vic.gov.au/media/10005/download?inline",
+    "agenda_url": "https://www.boroondara.vic.gov.au/media/10005/download?inline",
+    "minutes_url": "https://www.boroondara.vic.gov.au/media/10006/download?inline"
+  },
+  {
+    "name": "Council Meeting - 25 November 2024",
+    "date": "2024-11-25",
+    "time": "6:30 pm",
+    "location": "8 Inglesby Road, Camberwell, Victoria 3124",
+    "webpage_url": "https://www.boroondara.vic.gov.au/events/council-meeting-25-november-2024",
+    "download_url": "https://www.boroondara.vic.gov.au/media/10007/download?inline",
+    "agenda_url": "https://www.boroondara.vic.gov.au/media/10007/download?inline",
+    "minutes_url": null
+  }
+]
