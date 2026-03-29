@@ -39,6 +39,8 @@ class ScraperReturn:
     `webpage_url`: The URL of the webpage where the agenda is found.\n
     `agenda_url`: The URL of the agenda PDF (optional).\n
     `minutes_url`: The URL of the minutes PDF (optional).\n
+    `agenda_html_url`: The URL of the agenda in HTML format (optional).\n
+    `minutes_html_url`: The URL of the minutes in HTML format (optional).\n
     `download_url`: [DEPRECATED] The URL of the PDF - use agenda_url/minutes_url instead.\n
     `location`: The location of the meeting (e.g. Council Chambers).\n
     `cleaned_time`: The time of the meeting as a time object.\n
@@ -52,6 +54,8 @@ class ScraperReturn:
     download_url: str = None  # Deprecated - kept for backward compatibility
     agenda_url: Optional[str] = None
     minutes_url: Optional[str] = None
+    agenda_html_url: Optional[str] = None
+    minutes_html_url: Optional[str] = None
     location: Optional[str] = None
 
     # Cached properties
@@ -159,6 +163,20 @@ class ScraperReturn:
         ):
             return False
 
+        # Compare HTML URLs (only if both have them, for backward compatibility)
+        if (
+            self.agenda_html_url
+            and other.agenda_html_url
+            and self.agenda_html_url != other.agenda_html_url
+        ):
+            return False
+        if (
+            self.minutes_html_url
+            and other.minutes_html_url
+            and self.minutes_html_url != other.minutes_html_url
+        ):
+            return False
+
         # Handle URL comparison with backward compatibility
         # Case 1: Both use new format (agenda_url/minutes_url)
         if self.agenda_url and other.agenda_url:
@@ -202,6 +220,8 @@ class ScraperReturn:
             "download_url": self.download_url,  # Kept for backward compatibility
             "agenda_url": self.agenda_url,
             "minutes_url": self.minutes_url,
+            "agenda_html_url": self.agenda_html_url,
+            "minutes_html_url": self.minutes_html_url,
         }
 
     @staticmethod
@@ -224,6 +244,8 @@ class ScraperReturn:
             download_url=download_url,
             agenda_url=agenda_url,
             minutes_url=minutes_url,
+            agenda_html_url=d.get("agenda_html_url"),
+            minutes_html_url=d.get("minutes_html_url"),
             location=d.get("location"),
         )
 
@@ -380,6 +402,9 @@ class InfoCouncilScraper(BaseScraper):
                 # Process each meeting row
                 for current_meeting in meeting_rows:
                     # Look for agenda PDF link
+                    agenda_cell = current_meeting.find(
+                        "td", class_="bpsGridAgenda"
+                    )
                     agenda_link = current_meeting.find(
                         "a", class_="bpsGridPDFLink", recursive=True
                     )
@@ -387,6 +412,18 @@ class InfoCouncilScraper(BaseScraper):
                     if agenda_link and "href" in agenda_link.attrs:
                         agenda_url = urllib.parse.urljoin(
                             self.infocouncil_url, agenda_link["href"]
+                        )
+
+                    # Look for agenda HTML link
+                    agenda_html_url = None
+                    agenda_html_link = None
+                    if agenda_cell:
+                        agenda_html_link = agenda_cell.find(
+                            "a", class_="bpsGridHTMLLink"
+                        )
+                    if agenda_html_link and "href" in agenda_html_link.attrs:
+                        agenda_html_url = urllib.parse.urljoin(
+                            self.infocouncil_url, agenda_html_link["href"]
                         )
 
                     # Look for minutes PDF link - often has a different class or text
@@ -419,6 +456,20 @@ class InfoCouncilScraper(BaseScraper):
                             self.infocouncil_url, minutes_link["href"]
                         )
 
+                    # Look for minutes HTML link
+                    minutes_html_url = None
+                    minutes_cell = current_meeting.find(
+                        "td", class_="bpsGridMinutes"
+                    )
+                    if minutes_cell:
+                        minutes_html_link = minutes_cell.find(
+                            "a", class_="bpsGridHTMLLink"
+                        )
+                        if minutes_html_link and "href" in minutes_html_link.attrs:
+                            minutes_html_url = urllib.parse.urljoin(
+                                self.infocouncil_url, minutes_html_link["href"]
+                            )
+
                     date_text = current_meeting.find(
                         "td", class_="bpsGridDate"
                     ).get_text(separator=" ")
@@ -448,6 +499,8 @@ class InfoCouncilScraper(BaseScraper):
                         webpage_url=self.infocouncil_url,
                         agenda_url=agenda_url,
                         minutes_url=minutes_url,
+                        agenda_html_url=agenda_html_url,
+                        minutes_html_url=minutes_html_url,
                         download_url=agenda_url,  # For backward compatibility
                         location=location_text,
                     )
