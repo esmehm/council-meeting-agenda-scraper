@@ -265,6 +265,13 @@ class StrathfieldNSWScraper(BaseScraper):
             f"Starting {self.council_name} scraper (OpenCities Minutes & Agendas)"
         )
 
+        years_filter: set[int] | None = getattr(self, "years_filter", None)
+        if years_filter:
+            years_filter = set(years_filter)
+            min_year = min(years_filter)
+        else:
+            min_year = EARLIEST_YEAR
+
         all_results = []
         page = 1
         should_continue = True
@@ -285,20 +292,23 @@ class StrathfieldNSWScraper(BaseScraper):
                 self.logger.info(f"Found {len(meetings)} meetings on page {page}")
 
                 for meeting in meetings:
-                    # Check if meeting is before earliest year
                     try:
-                        # Parse the date to get the year
-                        # Expected format: "16 December 2025"
                         meeting_date = datetime.strptime(meeting.date, "%d %B %Y")
-                        if meeting_date.year < EARLIEST_YEAR:
-                            self.logger.info(
-                                f"Meeting {meeting.name} is before {EARLIEST_YEAR}, stopping pagination"
-                            )
-                            should_continue = False
-                            break
+                        meeting_year = meeting_date.year
                     except ValueError:
-                        # If we can't parse the date, log and continue
                         self.logger.warning(f"Could not parse date: {meeting.date}")
+                        meeting_year = None
+
+                    if meeting_year is not None and meeting_year < min_year:
+                        self.logger.info(
+                            f"Meeting {meeting.name} is before {min_year}, stopping pagination"
+                        )
+                        should_continue = False
+                        break
+
+                    # Skip meetings outside the requested years
+                    if years_filter and meeting_year not in years_filter:
+                        continue
 
                     # Fetch details for this meeting
                     try:
@@ -311,11 +321,12 @@ class StrathfieldNSWScraper(BaseScraper):
 
                         all_results.append(
                             ScraperReturn(
-                                meeting.name,
-                                meeting.date,
-                                None,  # time isn't reliably included
-                                _STRATHFIELD_INDEX_URL,
-                                agenda_url,
+                                name=meeting.name,
+                                date=meeting.date,
+                                time=None,
+                                webpage_url=_STRATHFIELD_INDEX_URL,
+                                download_url=agenda_url,
+                                agenda_url=agenda_url,
                             )
                         )
                     except Exception as e:
