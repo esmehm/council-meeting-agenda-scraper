@@ -72,8 +72,10 @@ class ExampleScraper(BaseScraper):
 | `webpage_url` | **Yes** | Page where the agenda was found |
 | `agenda_url` | No | Direct link to agenda PDF |
 | `minutes_url` | No | Direct link to minutes PDF |
+| `agenda_html_url` | No | Direct link to agenda in HTML format |
+| `minutes_html_url` | No | Direct link to minutes in HTML format |
 | `location` | No | Meeting location |
-| `download_url` | No | Deprecated — do not use |
+| `download_url` | No | Deprecated but still required for backward compatibility — set to `agenda_url or minutes_url` (PDF only, not HTML) |
 
 ### Fetching Pages
 

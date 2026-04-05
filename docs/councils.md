@@ -4,7 +4,7 @@
 
 Based on testing with 2024 data:
 
-- **16 councils** successfully return multiple meetings (historical data)
+- **17 councils** successfully return multiple meetings (historical data)
 - **15 councils** return 0 meetings or have errors (need investigation/fixing)
 - **2 councils** timeout during scraping (Parramatta, Strathfield - likely return multiple but need optimization)
 
