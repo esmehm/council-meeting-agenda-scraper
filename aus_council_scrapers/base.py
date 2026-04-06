@@ -392,7 +392,11 @@ class InfoCouncilScraper(BaseScraper):
         # Try from EARLIEST_YEAR to current year + 2 (meetings published up to 2 years in advance)
         # InfoCouncil sites may support ?year=YYYY parameter
         current_year = datetime.datetime.now().year
-        years_to_try = range(EARLIEST_YEAR, current_year + 3)
+        years_filter = getattr(self, "years_filter", None)
+        if years_filter:
+            years_to_try = sorted(years_filter)
+        else:
+            years_to_try = range(EARLIEST_YEAR, current_year + 3)
 
         for year in years_to_try:
             year_url = f"{self.infocouncil_url}?year={year}"
@@ -487,6 +491,16 @@ class InfoCouncilScraper(BaseScraper):
                     date_search = self.date_regex.search(date_text)
                     date = date_search.group() if date_search else None
 
+                    # Skip rows where the date doesn't belong to the queried year.
+                    # Some sites ignore ?year= and always return the current year's
+                    # data, which would otherwise cause duplicates across year queries.
+                    if date:
+                        try:
+                            if parse_date(date, fuzzy=True).year != year:
+                                continue
+                        except Exception:
+                            pass
+
                     location = current_meeting.find("td", class_="bpsGridCommittee")
                     location_text = None
                     location_spans = [
@@ -499,6 +513,9 @@ class InfoCouncilScraper(BaseScraper):
                             break
 
                     name = location.text if location else None
+
+                    if not agenda_url and not minutes_url:
+                        continue
 
                     scraper_return = ScraperReturn(
                         name=name,
