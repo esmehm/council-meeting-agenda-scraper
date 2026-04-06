@@ -8,7 +8,6 @@ from datetime import datetime, timezone
 from typing import Optional
 from urllib.parse import urljoin
 
-import requests
 from bs4 import BeautifulSoup
 
 from aus_council_scrapers.base import BaseScraper, ScraperReturn, register_scraper
@@ -126,8 +125,7 @@ class StrathfieldNSWScraper(BaseScraper):
         """
         Calls the same endpoint your browser calls when expanding an accordion row.
 
-        NOTE: Strathfield also blocks direct requests to this endpoint (403),
-        so fall back to selenium which has the right browser context/cookies.
+        Strathfield blocks requests to this endpoint (403), so always use selenium.
         """
         params = {
             "url": _OC_DOCUMENTRENDERER_URL,
@@ -136,58 +134,19 @@ class StrathfieldNSWScraper(BaseScraper):
             "cachebuster": self._cachebuster(),
         }
 
-        # Build the exact URL (useful for selenium fallback)
         details_url = f"{_OC_SERVICE_HANDLER_URL}?{urlencode(params)}"
-
-        headers = {
-            "User-Agent": (
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-            ),
-            "Accept": "*/*",
-            "Accept-Language": "en-AU,en;q=0.9",
-            "Referer": _STRATHFIELD_INDEX_URL,
-            "Origin": _STRATHFIELD_BASE_URL,
-        }
-
-        # 1) Try requests (fast)
-        try:
-            r = requests.get(
-                _OC_SERVICE_HANDLER_URL, params=params, headers=headers, timeout=30
-            )
-            r.raise_for_status()
-            return r.text
-        except requests.exceptions.HTTPError as e:
-            status = getattr(e.response, "status_code", None)
-            if status != 403:
-                raise
-            self.logger.warning(
-                f"403 from requests for OCServiceHandler; falling back to selenium: {details_url}"
-            )
-
-        # 2) Selenium fallback (reliable)
-        if not hasattr(self.fetcher, "fetch_with_selenium"):
-            raise RuntimeError(
-                "OCServiceHandler blocked (403) and no selenium fetcher available"
-            )
-
         return self.fetcher.fetch_with_selenium(details_url)
 
-    def _extract_agenda_url_from_details(self, details_html: str) -> str:
+    def _extract_urls_from_details(
+        self, details_html: str
+    ) -> tuple[Optional[str], Optional[str]]:
         """
-        OpenCities documentrenderer may return:
-        - HTML fragment
-        - JSON containing an HTML fragment (escaped)
-        - Something else with embedded PDF URLs
-
-        Be robust:
-        - try JSON decode
-        - extract embedded HTML/text
-        - search for agenda PDF links
+        Parse the OpenCities documentrenderer response and return (agenda_url, minutes_url).
+        Either may be None if not found.
         """
         payload_texts: list[str] = [details_html]
 
-        # 1) If it's JSON, harvest all string fields (some responses are {"html":"..."} or {"d":"..."} etc)
+        # 1) If it's JSON, harvest all string fields
         stripped = details_html.lstrip()
         if stripped.startswith("{") or stripped.startswith("["):
             try:
@@ -205,14 +164,11 @@ class StrathfieldNSWScraper(BaseScraper):
 
                 collect_strings(obj)
             except Exception:
-                # Not valid JSON; ignore
                 pass
 
         # 2) Normalise / unescape common encodings
         normalised_blobs: list[str] = []
         for t in payload_texts:
-            # Unescape JSON-style escaped slashes and unicode escapes often seen in these payloads
-            # (If it isn't escaped, these are harmless.)
             t2 = t.replace("\\/", "/")
             try:
                 t2 = bytes(t2, "utf-8").decode("unicode_escape")
@@ -234,7 +190,7 @@ class StrathfieldNSWScraper(BaseScraper):
             if ".pdf" in href.lower():
                 pdf_links.append(href)
 
-        # 4) Regex fallback: find any PDF URLs in the raw content
+        # 4) Regex fallback
         if not pdf_links:
             pdf_links = [m.group(0) for m in _PDF_URL_RE.finditer(combined)]
 
@@ -243,22 +199,27 @@ class StrathfieldNSWScraper(BaseScraper):
                 "Could not find any PDF links in OpenCities details response."
             )
 
-        # 5) Prefer agenda-looking PDFs
-        def score(u: str) -> int:
-            lu = u.lower()
-            s = 0
-            if "agenda" in lu:
-                s += 100
-            if "business" in lu or "papers" in lu:
-                s += 10
-            if "minutes" in lu:
-                s -= 50
-            return s
+        pdf_links = list(dict.fromkeys(pdf_links))  # deduplicate, preserve order
 
-        pdf_links = sorted(set(pdf_links), key=score, reverse=True)
+        # 5) Classify each link
+        agenda_url: Optional[str] = None
+        minutes_url: Optional[str] = None
 
-        best = pdf_links[0]
-        return urljoin(_STRATHFIELD_BASE_URL, best)
+        for href in pdf_links:
+            lu = href.lower()
+            absolute = urljoin(_STRATHFIELD_BASE_URL, href)
+            if "agenda" in lu or "business" in lu or "papers" in lu:
+                if agenda_url is None:
+                    agenda_url = absolute
+            elif "minutes" in lu:
+                if minutes_url is None:
+                    minutes_url = absolute
+
+        # Fallback: if nothing was classified, treat the first link as the agenda
+        if agenda_url is None and minutes_url is None and pdf_links:
+            agenda_url = urljoin(_STRATHFIELD_BASE_URL, pdf_links[0])
+
+        return agenda_url, minutes_url
 
     def scraper(self) -> list[ScraperReturn]:
         self.logger.info(
@@ -313,11 +274,16 @@ class StrathfieldNSWScraper(BaseScraper):
                     # Fetch details for this meeting
                     try:
                         details_html = self._fetch_meeting_details_html(meeting.cvid)
-                        agenda_url = self._extract_agenda_url_from_details(details_html)
+                        agenda_url, minutes_url = self._extract_urls_from_details(details_html)
 
-                        self.logger.info(
-                            f"Found agenda for {meeting.name}: {agenda_url}"
-                        )
+                        if agenda_url:
+                            self.logger.info(
+                                f"Found agenda for {meeting.name}: {agenda_url}"
+                            )
+                        if minutes_url:
+                            self.logger.info(
+                                f"Found minutes for {meeting.name}: {minutes_url}"
+                            )
 
                         all_results.append(
                             ScraperReturn(
@@ -327,6 +293,7 @@ class StrathfieldNSWScraper(BaseScraper):
                                 webpage_url=_STRATHFIELD_INDEX_URL,
                                 download_url=agenda_url,
                                 agenda_url=agenda_url,
+                                minutes_url=minutes_url,
                             )
                         )
                     except Exception as e:

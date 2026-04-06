@@ -116,10 +116,6 @@ def test_scraper(scraper_instance: BaseScraper):
     test_replay_data = os.path.join(
         "tests/test-cases", scraper_instance.council_name + "-replay_data.json"
     )
-    if scraper_instance.council_name in ["strathfield"]:
-        pytest.skip(
-            f"Known issue with {scraper_instance.council_name} scraper. Skipping for now."
-        )
     if os.path.exists(test_result) and os.path.exists(test_replay_data):
         with open(test_result, "r") as f:
             result_data = json.load(f)
