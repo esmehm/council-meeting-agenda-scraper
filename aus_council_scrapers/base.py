@@ -289,7 +289,15 @@ class DefaultFetcher(Fetcher):
     def __setup_selenium_driver(self):
         chrome_options = Options()
         chrome_options.add_argument("--headless")
+        # Suppress automation signals that bot-detection (e.g. Akamai) checks for
+        chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+        chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        chrome_options.add_experimental_option("useAutomationExtension", False)
         self.__driver = webdriver.Chrome(options=chrome_options)
+        self.__driver.execute_cdp_cmd(
+            "Page.addScriptToEvaluateOnNewDocument",
+            {"source": "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"},
+        )
 
     def get_selenium_driver(self):
         if not self.__driver:
